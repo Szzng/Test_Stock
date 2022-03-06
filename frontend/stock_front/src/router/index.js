@@ -1,8 +1,7 @@
 import Vue from 'vue'
 import Router from 'vue-router'
 import MainHome from '@/components/MainHome.vue'
-import StocksDrawer from '@/components/RisingStock/StocksDrawer.vue'
-// import StockNews from '@/components/RisingStock/StockNews.vue'
+import StockList from '@/components/RisingStock/StockList.vue'
 
 Vue.use(Router)
 
@@ -12,14 +11,14 @@ export default new Router({
     { path: '/', component: MainHome },
     {
       path: '/risingstock',
-      component: StocksDrawer,
+      component: StockList,
       props: true,
       children: [
         {
           path: ':code',
-          name: 'StockNews',
+          name: 'NewsList',
           props: true,
-          component: () => import('@/components/RisingStock/StockNews.vue')
+          component: () => import('@/components/RisingStock/NewsList.vue')
         }
       ]
     }
