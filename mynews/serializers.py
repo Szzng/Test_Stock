@@ -3,7 +3,6 @@ from .models import Keyword, NewsOfKeyword
 
 
 class KeywordSerializer(serializers.ModelSerializer):
-    created_at = serializers.DateTimeField(format="%-m월 %-d일 %H:%M:%S")
     class Meta:
         model = Keyword
         fields = '__all__'
