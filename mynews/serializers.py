@@ -6,6 +6,7 @@ class KeywordSerializer(serializers.ModelSerializer):
     class Meta:
         model = Keyword
         fields = '__all__'
+        depth = 1
 
 
 class NewsSerializer(serializers.ModelSerializer):
