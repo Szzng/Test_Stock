@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'rest_framework',
 
     'risingstock.apps.RisingstockConfig',
+    'mynews.apps.MynewsConfig',
 ]
 
 MIDDLEWARE = [

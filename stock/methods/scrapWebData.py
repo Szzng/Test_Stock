@@ -1,14 +1,7 @@
-import os
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "stock.settings")
-import django
-django.setup()
-
 import requests
 from bs4 import BeautifulSoup as bs
 import re
 import pandas as pd
-import numpy as np
-from risingstock.models import RisingStock, NewsOfRisingStock
 
 
 def create_soup(url):
@@ -77,20 +70,3 @@ def get_latest_news_df(keywords, pages=3):
             else:
                 break
     return df
-
-
-def update_risingstock_db(num=80, pages=3):
-    stocks = get_risingstock_df(num)
-    news = get_latest_news_df(keywords=stocks['name'], pages=pages)
-    news_with_code = pd.merge(stocks[['code', 'name']], news, left_on='name', right_on='keyword', how='inner')
-
-    RisingStock.objects.all().delete()
-
-    for r in stocks.itertuples():
-        RisingStock(code=r.code, name=r.name, curprice=r.curprice, ratio=r.ratio, diff=r.diff,
-                    volume=r.volume, per=r.per, roe=r.roe).save()
-
-    for r in news_with_code.itertuples():
-        NewsOfRisingStock(code_id=r.code, keyword=r.keyword, title=r.title, url=r.url, written_at=r.written_at).save()
-
-update_risingstock_db()
