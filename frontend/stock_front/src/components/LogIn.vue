@@ -45,10 +45,10 @@ import { mapActions, mapState } from 'vuex'
 
 export default {
   computed: {
-    ...mapState('userStore', ['dialog', 'loginState', 'me'])
+    ...mapState('accountsStore', ['dialog', 'loginState', 'me'])
   },
   methods: {
-    ...mapActions('userStore', ['login']),
+    ...mapActions('accountsStore', ['login']),
     save () {
       console.log('save()...')
       const postData = new FormData(document.getElementById('login-form'))

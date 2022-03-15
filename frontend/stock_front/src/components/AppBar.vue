@@ -97,12 +97,12 @@ export default {
   }),
 
   computed: {
-    ...mapState('userStore', ['loginState', 'me'])
+    ...mapState('accountsStore', ['loginState', 'me'])
   },
 
   methods: {
-    ...mapMutations('userStore', ['dialogOpen']),
-    ...mapActions('userStore', ['logout'])
+    ...mapMutations('accountsStore', ['dialogOpen']),
+    ...mapActions('accountsStore', ['logout'])
   }
 }
 </script>

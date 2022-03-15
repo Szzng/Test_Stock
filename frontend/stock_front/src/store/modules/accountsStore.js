@@ -9,6 +9,10 @@ const userStore = {
       register: false,
       login: false
     },
+    registerState: {
+      isRegister: false,
+      isRegisterError: false
+    },
     loginState: {
       isLogin: false,
       isLoginError: false
@@ -20,16 +24,22 @@ const userStore = {
   mutations: {
     dialogOpen (state, kind) {
       console.log('dialogOpen', kind)
-      if (kind === 'login') {
-        state.dialog.login = true
-      } else if (kind === 'register') {
+      if (kind === 'register') {
         state.dialog.register = true
+      } else if (kind === 'login') {
+        state.dialog.login = true
       }
+    },
+    registerSuccess (state, userInfo) {
+      state.registerState.isRegister = true
+      state.registerState.isRegisterError = false
+      state.dialog.register = false
+      state.dialog.login = true
     },
     loginSuccess (state, userInfo) {
       state.loginState.isLogin = true
       state.loginState.isLoginError = false
-      state.me.username = 'sz'
+      state.me.username = userInfo.username
       state.dialog.login = false
     },
     logoutSuccess (state) {
@@ -39,14 +49,27 @@ const userStore = {
     }
   },
   actions: {
+    register ({ dispatch }, postData) {
+      console.log('register()...')
+      axios
+        .post('api/accounts/registrater/', postData)
+        .then(res => {
+          console.log('Register POST res', res)
+          dispatch('login')
+        })
+        .catch(err => {
+          console.log('Register POST err', err.response)
+          alert('Register NOK')
+        })
+    },
     login ({ dispatch }, postData) {
       console.log('login()...')
       axios
-        .post('/accounts/login/', postData)
+        .post('api/accounts/login/', postData)
         .then(res => {
           console.log('Login1 POST res', res)
-          let token = res.data.token
-          localStorage.setItem('access_token', token)
+          let accessToken = res.data.access_token
+          localStorage.setItem('access_token', accessToken)
           dispatch('getUserInfo')
         })
         .catch(err => {
