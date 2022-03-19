@@ -7,6 +7,12 @@
         </v-toolbar>
         <v-form id="login-form" ref="loginForm" class="pa-3 pt-6">
           <v-text-field
+            name="username"
+            label="username"
+            outlined
+            color="primary"
+          ></v-text-field>
+          <v-text-field
             name="email"
             label="이메일"
             outlined
