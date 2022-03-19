@@ -57,7 +57,7 @@
 
         <v-list style="text-align: center">
           <template v-if="!loginState.isLogin">
-            <v-list-item>
+            <v-list-item @click="dialogOpen('register')">
               <v-list-item-title>회원가입</v-list-item-title>
             </v-list-item>
             <v-list-item @click="dialogOpen('login')">
@@ -76,16 +76,18 @@
         </v-list>
       </v-menu>
     </v-app-bar>
+    <Register />
     <LogIn />
   </div>
 </template>
 
 <script>
+import Register from '@/components/Register.vue'
 import LogIn from '@/components/LogIn.vue'
 import { mapState, mapMutations, mapActions } from 'vuex'
 
 export default {
-  components: { LogIn },
+  components: { Register, LogIn },
 
   data: () => ({
     menus: [

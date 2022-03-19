@@ -3,9 +3,10 @@ from django.urls import path
 #     LoginView, LogoutView, PasswordChangeView, PasswordResetConfirmView,
 #     PasswordResetView, UserDetailsView,
 # )
+# from dj_rest_auth.registration.views import RegisterView
+
 from accounts.views import (LoginView, LogoutView, PasswordChangeView, PasswordResetConfirmView, PasswordResetView,
-                            UserDetailsView, )
-from dj_rest_auth.registration.views import RegisterView
+                            UserDetailsView, RegisterView )
 from rest_framework_simplejwt.views import TokenVerifyView
 from dj_rest_auth.jwt_auth import get_refresh_view
 
