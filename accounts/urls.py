@@ -14,17 +14,17 @@ app_name = 'api/accounts'
 
 urlpatterns = [
     # URLs that do not require a valid token
-    path('register/', RegisterView.as_view(), name='rest_login'),
-    path('login/', LoginView.as_view(), name='rest_login'),
-    path('password/reset/', PasswordResetView.as_view(), name='rest_password_reset'),
-    path('password/reset/confirm/', PasswordResetConfirmView.as_view(), name='rest_password_reset_confirm'),
+    path('register/', RegisterView.as_view()),
+    path('login/', LoginView.as_view()),
+    path('password/reset/', PasswordResetView.as_view()),
+    path('password/reset/confirm/', PasswordResetConfirmView.as_view()),
 
     # URLs that require a user to be logged in with a valid token.
-    path('logout/', LogoutView.as_view(), name='rest_logout'),
-    path('user/', UserDetailsView.as_view(), name='rest_user_details'),
-    path('password/change/', PasswordChangeView.as_view(), name='rest_password_change'),
+    path('logout/', LogoutView.as_view()),
+    path('user/', UserDetailsView.as_view()),
+    path('password/change/', PasswordChangeView.as_view()),
 
     # token
-    path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
-    path('token/refresh/', get_refresh_view().as_view(), name='token_refresh'),
+    path('token/verify/', TokenVerifyView.as_view()),
+    path('token/refresh/', get_refresh_view().as_view()),
 ]

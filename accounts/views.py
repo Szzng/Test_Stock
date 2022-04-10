@@ -1,6 +1,5 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth import login as django_login
 from django.contrib.auth import logout as django_logout
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
@@ -12,6 +11,9 @@ from rest_framework.generics import GenericAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from datetime import timedelta
+from .utils import jwt_encode
+from .serializers import *
 
 from dj_rest_auth.app_settings import (
     JWTSerializer, JWTSerializerWithExpiration, LoginSerializer,
@@ -19,12 +21,6 @@ from dj_rest_auth.app_settings import (
     PasswordResetSerializer, TokenSerializer, UserDetailsSerializer,
     create_token,
 )
-from dj_rest_auth.models import get_token_model
-from dj_rest_auth.utils import jwt_encode
-from rest_framework_simplejwt.settings import api_settings as jwt_settings
-from dj_rest_auth.jwt_auth import set_jwt_cookies, unset_jwt_cookies
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
 
 sensitive_post_parameters_m = method_decorator(
     sensitive_post_parameters(
@@ -34,48 +30,43 @@ sensitive_post_parameters_m = method_decorator(
 
 
 class LoginView(GenericAPIView):
-    """
-    Check the credentials and return the REST Token
-    if the credentials are valid and authenticated.
-    Calls Django Auth login method to register User ID
-    in Django session framework
 
-    Accept the following POST parameters: username, password
-    Return the REST Framework Token Object's key.
-    """
     permission_classes = (AllowAny,)
     serializer_class = LoginSerializer
     throttle_scope = 'dj_rest_auth'
 
     user = None
     access_token = None
-    token = None
+    refresh_token = None
 
     @sensitive_post_parameters_m
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
-
-    def get_response_serializer(self):
-        return JWTSerializer
 
     def login(self):
         self.user = self.serializer.validated_data['user']
         self.access_token, self.refresh_token = jwt_encode(self.user)
 
     def get_response(self):
+        access_token_expiration = timezone.now() + timedelta(hours=2)
+        refresh_token_expiration = timezone.now() + timedelta(days=7)
+
         data = {
             'user': self.user,
             'access_token': self.access_token,
             'refresh_token': self.refresh_token,
+            'access_token_expiration': access_token_expiration,
+            'refresh_token_expiration': refresh_token_expiration
         }
 
-        serializer_class = self.get_response_serializer()
-        serializer = serializer_class(
+        serializer = JWTSerializerWithExpiration(
             instance=data,
             context=self.get_serializer_context(),
         )
 
         response = Response(serializer.data, status=status.HTTP_200_OK)
+
+        from dj_rest_auth.jwt_auth import set_jwt_cookies
         set_jwt_cookies(response, self.access_token, self.refresh_token)
 
         return response
@@ -116,42 +107,54 @@ class LogoutView(APIView):
         except (AttributeError, ObjectDoesNotExist):
             pass
 
+        if getattr(settings, 'REST_SESSION_LOGIN', True):
+            django_logout(request)
+
         response = Response(
             {'detail': _('Successfully logged out.')},
             status=status.HTTP_200_OK,
         )
 
-        cookie_name = getattr(settings, 'JWT_AUTH_COOKIE', None)
-        unset_jwt_cookies(response)
+        if getattr(settings, 'REST_USE_JWT', False):
+            # NOTE: this import occurs here rather than at the top level
+            # because JWT support is optional, and if `REST_USE_JWT` isn't
+            # True we shouldn't need the dependency
+            from rest_framework_simplejwt.exceptions import TokenError
+            from rest_framework_simplejwt.tokens import RefreshToken
 
-        if 'rest_framework_simplejwt.token_blacklist' in settings.INSTALLED_APPS:
-            # add refresh token to blacklist
-            try:
-                token = RefreshToken(request.data['refresh'])
-                token.blacklist()
-            except KeyError:
-                response.data = {'detail': _('Refresh token was not included in request data.')}
-                response.status_code = status.HTTP_401_UNAUTHORIZED
-            except (TokenError, AttributeError, TypeError) as error:
-                if hasattr(error, 'args'):
-                    if 'Token is blacklisted' in error.args or 'Token is invalid or expired' in error.args:
-                        response.data = {'detail': _(error.args[0])}
-                        response.status_code = status.HTTP_401_UNAUTHORIZED
+            from dj_rest_auth.jwt_auth import unset_jwt_cookies
+            cookie_name = getattr(settings, 'JWT_AUTH_COOKIE', None)
+
+            unset_jwt_cookies(response)
+
+            if 'rest_framework_simplejwt.token_blacklist' in settings.INSTALLED_APPS:
+                # add refresh token to blacklist
+                try:
+                    token = RefreshToken(request.data['refresh'])
+                    token.blacklist()
+                except KeyError:
+                    response.data = {'detail': _('Refresh token was not included in request data.')}
+                    response.status_code =status.HTTP_401_UNAUTHORIZED
+                except (TokenError, AttributeError, TypeError) as error:
+                    if hasattr(error, 'args'):
+                        if 'Token is blacklisted' in error.args or 'Token is invalid or expired' in error.args:
+                            response.data = {'detail': _(error.args[0])}
+                            response.status_code = status.HTTP_401_UNAUTHORIZED
+                        else:
+                            response.data = {'detail': _('An error has occurred.')}
+                            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+
                     else:
                         response.data = {'detail': _('An error has occurred.')}
                         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
 
-                else:
-                    response.data = {'detail': _('An error has occurred.')}
-                    response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-
-        elif not cookie_name:
-            message = _(
-                'Neither cookies or blacklist are enabled, so the token '
-                'has not been deleted server side. Please make sure the token is deleted client side.',
-            )
-            response.data = {'detail': message}
-            response.status_code = status.HTTP_200_OK
+            elif not cookie_name:
+                message = _(
+                    'Neither cookies or blacklist are enabled, so the token '
+                    'has not been deleted server side. Please make sure the token is deleted client side.',
+                )
+                response.data = {'detail': message}
+                response.status_code = status.HTTP_200_OK
         return response
 
 
@@ -250,73 +253,3 @@ class PasswordChangeView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'detail': _('New password has been saved.')})
-
-
-from allauth.account import app_settings as allauth_settings
-from allauth.account.utils import complete_signup
-from django.conf import settings
-from django.utils.decorators import method_decorator
-from django.utils.translation import gettext_lazy as _
-from django.views.decorators.debug import sensitive_post_parameters
-from rest_framework import status
-from rest_framework.generics import CreateAPIView
-from rest_framework.response import Response
-from dj_rest_auth.app_settings import (
-    JWTSerializer, TokenSerializer, create_token,
-)
-from dj_rest_auth.models import TokenModel
-from dj_rest_auth.utils import jwt_encode
-from dj_rest_auth.registration.app_settings import RegisterSerializer, register_permission_classes
-
-
-sensitive_post_parameters_m = method_decorator(
-    sensitive_post_parameters('password1', 'password2'),
-)
-
-
-class RegisterView(CreateAPIView):
-    serializer_class = RegisterSerializer
-    permission_classes = register_permission_classes()
-    token_model = TokenModel
-    throttle_scope = 'dj_rest_auth'
-
-    @sensitive_post_parameters_m
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def get_response_data(self, user):
-        data = {
-            'user': user,
-            'access_token': self.access_token,
-            'refresh_token': self.refresh_token,
-        }
-        return JWTSerializer(data, context=self.get_serializer_context()).data
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        data = self.get_response_data(user)
-
-        if data:
-            response = Response(
-                data,
-                status=status.HTTP_201_CREATED,
-                headers=headers,
-            )
-        else:
-            response = Response(status=status.HTTP_204_NO_CONTENT, headers=headers)
-
-        return response
-
-    def perform_create(self, serializer):
-        user = serializer.save(self.request)
-
-        complete_signup(
-            self.request._request, user,
-            False,
-            '/',
-            None,
-        )
-        return user
