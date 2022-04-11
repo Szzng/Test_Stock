@@ -15,12 +15,12 @@ from datetime import timedelta
 from .utils import jwt_encode
 from .serializers import *
 
-from dj_rest_auth.app_settings import (
-    JWTSerializer, JWTSerializerWithExpiration, LoginSerializer,
-    PasswordChangeSerializer, PasswordResetConfirmSerializer,
-    PasswordResetSerializer, TokenSerializer, UserDetailsSerializer,
-    create_token,
-)
+# from dj_rest_auth.app_settings import (
+#     JWTSerializer, JWTSerializerWithExpiration, LoginSerializer,
+#     PasswordChangeSerializer, PasswordResetConfirmSerializer,
+#     PasswordResetSerializer, TokenSerializer, UserDetailsSerializer,
+#     create_token,
+# )
 
 sensitive_post_parameters_m = method_decorator(
     sensitive_post_parameters(

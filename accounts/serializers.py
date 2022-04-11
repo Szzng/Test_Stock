@@ -6,18 +6,14 @@ from django.utils.encoding import force_str
 from django.utils.translation import gettext_lazy as _
 from rest_framework import exceptions, serializers
 from rest_framework.exceptions import ValidationError
-
-
 if 'allauth' in settings.INSTALLED_APPS:
     from dj_rest_auth.forms import AllAuthPasswordResetForm
 
-
-# Get the UserModel
 UserModel = get_user_model()
 
-
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=False, allow_blank=True)
+
+    email = serializers.EmailField(required=True)
     password = serializers.CharField(style={'input_type': 'password'})
 
     def authenticate(self, **kwargs):
@@ -32,13 +28,6 @@ class LoginSerializer(serializers.Serializer):
 
         return user
 
-    def get_auth_user_using_allauth(self, username, email, password):
-        from allauth.account import app_settings
-
-        # Authentication through email
-        if app_settings.AUTHENTICATION_METHOD == app_settings.AuthenticationMethod.EMAIL:
-            return self._validate_email(email, password)
-
     def get_auth_user(self, email, password):
         if email:
             try:
@@ -48,70 +37,27 @@ class LoginSerializer(serializers.Serializer):
 
         return username
 
-    @staticmethod
-    def validate_auth_user_status(user):
-        if not user.is_active:
-            msg = _('User account is disabled.')
-            raise exceptions.ValidationError(msg)
-
-    @staticmethod
-    def validate_email_verification_status(user):
-        from allauth.account import app_settings
-        if app_settings.EMAIL_VERIFICATION == app_settings.EmailVerificationMethod.MANDATORY:
-            email_address = user.emailaddress_set.get(email=user.email)
-            if not email_address.verified:
-                raise serializers.ValidationError(_('E-mail is not verified.'))
-
     def validate(self, attrs):
         email = attrs.get('email')
         password = attrs.get('password')
-        user = self.get_auth_user(email, password)
 
+        user = self.get_auth_user(email, password)
         if not user:
             msg = _('Unable to log in with provided credentials.')
             raise exceptions.ValidationError(msg)
 
-        # Did we get back an active user?
-        self.validate_auth_user_status(user)
-
-        # If required, is the email verified?
-        if 'dj_rest_auth.registration' in settings.INSTALLED_APPS:
-            self.validate_email_verification_status(user)
+        if not user.is_active:
+            msg = _('User account is disabled.')
+            raise exceptions.ValidationError(msg)
 
         attrs['user'] = user
         return attrs
 
 
 class UserDetailsSerializer(serializers.ModelSerializer):
-    """
-    User model w/o password
-    """
-
-    @staticmethod
-    def validate_username(username):
-        if 'allauth.account' not in settings.INSTALLED_APPS:
-            # We don't need to call the all-auth
-            # username validator unless its installed
-            return username
-
-        from allauth.account.adapter import get_adapter
-        username = get_adapter().clean_username(username)
-        return username
 
     class Meta:
-        extra_fields = []
-        # see https://github.com/iMerica/dj-rest-auth/issues/181
-        # UserModel.XYZ causing attribute error while importing other
-        # classes from `serializers.py`. So, we need to check whether the auth model has
-        # the attribute or not
-        if hasattr(UserModel, 'USERNAME_FIELD'):
-            extra_fields.append(UserModel.USERNAME_FIELD)
-        if hasattr(UserModel, 'EMAIL_FIELD'):
-            extra_fields.append(UserModel.EMAIL_FIELD)
-        if hasattr(UserModel, 'first_name'):
-            extra_fields.append('first_name')
-        if hasattr(UserModel, 'last_name'):
-            extra_fields.append('last_name')
+        extra_fields = [UserModel.EMAIL_FIELD]
         model = UserModel
         fields = ('pk', *extra_fields)
         read_only_fields = ('email',)
